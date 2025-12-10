@@ -1,0 +1,57 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Status {
+  UP
+  DOWN
+}
+
+enum CheckType {
+  HTTP
+  DNS
+  SSL
+  PING
+}
+
+model Endpoint {
+  id              Int       @id @default(autoincrement())
+  url             String
+  intervalSeconds Int
+  email           String
+  webhookUrl      String?
+  currentStatus   Status    @default(UP)
+  failCount       Int       @default(0)
+  lastCheckedAt   DateTime?
+  createdAt       DateTime  @default(now())
+
+  checks    Check[]
+  incidents Incident[]
+}
+
+model Check {
+  id            Int        @id @default(autoincrement())
+  endpoint      Endpoint   @relation(fields: [endpointId], references: [id])
+  endpointId    Int
+  checkType     CheckType
+  status        Status
+  latencyMs     Int?
+  error         String?
+  resolvedIp    String?
+  sslExpiryDate DateTime?
+  checkedAt     DateTime   @default(now())
+}
+
+model Incident {
+  id          Int       @id @default(autoincrement())
+  endpoint    Endpoint  @relation(fields: [endpointId], references: [id])
+  endpointId  Int
+  downAt      DateTime
+  upAt        DateTime?
+  reason      String?
+}
