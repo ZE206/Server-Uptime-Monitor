@@ -5,7 +5,7 @@ export const router = Router();
 
 router.get("/:endpointId", async (req: Request, res: Response) => {
     try {
-        const endpointId = Number(req.params.endpointId);;
+        const endpointId = Number(req.params.endpointId);
         const limit = Number(req.query.limit) || 50;
         const page = Number(req.query.page) || 1;
 
