@@ -93,9 +93,9 @@ async function closeIncident(endpointId: number) {
 }
 
 async function sendDownAlert(endpoint: any, httpResult: CheckResult) {
-    console.log(`ALERT: ${endpoint.name} is DOWN - ${httpResult.error}`);
+    console.log(`ALERT: ${endpoint.url} is DOWN - ${httpResult.error}`);
 }
 
 async function sendRecoveryAlert(endpoint: any) {
-    console.log(`ALERT: ${endpoint.name} has RECOVERED`);
+    console.log(`ALERT: ${endpoint.url} has RECOVERED`);
 }
