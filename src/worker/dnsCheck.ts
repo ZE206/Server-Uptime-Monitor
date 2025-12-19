@@ -1,22 +1,22 @@
 import dns from "dns/promises";
-import {CheckResult} from "../types";
+import { CheckResult } from "../types";
 
-export async function runDnsCheck(endpoint:any): Promise<CheckResult>{
-    const hostname= new URL(endpoint.url).hostname;
+export async function runDnsCheck(endpoint: any): Promise<CheckResult> {
+    const hostname = new URL(endpoint.url).hostname;
 
-    try{
-        const result=await dns.lookup(hostname);
-        const ip=result.ip;
+    try {
+        const result = await dns.lookup(hostname);
+        const ip = result.address;
         return {
-            checkType:"DNS",
-            status:"UP",
+            checkType: "DNS",
+            status: "UP",
             resolvedIp: ip,
         }
-    } catch (err: any){
-        return{
-            checkType:"DNS",
-            status:"DOWN",
-            error:err.message,
+    } catch (err: any) {
+        return {
+            checkType: "DNS",
+            status: "DOWN",
+            error: err.message,
         }
     }
 }
