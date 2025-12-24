@@ -6,6 +6,7 @@ import { router as incidentsRouter } from "./routes/incidents";
 import { router as analyticsRouter } from "./routes/analytics";
 
 const app = express();
+
 app.use(express.json());
 app.use(cors());
 

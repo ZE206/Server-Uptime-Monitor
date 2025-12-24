@@ -1,4 +1,5 @@
-import tls from "tls";
+const tls = require("tls");
+
 import { CheckResult } from "../types";
 
 export async function runSslCheck(endpoint: any): Promise<CheckResult> {
@@ -15,50 +16,40 @@ export async function runSslCheck(endpoint: any): Promise<CheckResult> {
                 rejectUnauthorized: false,
             },
             () => {
-                try {
-                    const cert = socket.getPeerCertificate();
+                const cert = socket.getPeerCertificate();
+                socket.end();
 
-                    if (!cert || !cert.valid_to) {
-                        socket.destroy();
-                        resolve({
-                            checkType: "SSL",
-                            status: "DOWN",
-                            error: "NO_CERTIFICATE",
-                        });
-                        return;
-                    }
-
-                    const expiryDate = new Date(cert.valid_to);
-                    const now = new Date();
-
-                    socket.destroy();
-
-                    if (expiryDate > now) {
-                        resolve({
-                            checkType: "SSL",
-                            status: "UP",
-                            sslExpiryDate: expiryDate,
-                        });
-                    } else {
-                        resolve({
-                            checkType: "SSL",
-                            status: "DOWN",
-                            error: "SSL_EXPIRED",
-                        });
-                    }
-                } catch (err: any) {
-                    socket.destroy();
+                if (!cert || !cert.valid_to) {
                     resolve({
                         checkType: "SSL",
                         status: "DOWN",
-                        error: err.message,
+                        error: "NO_CERT",
                     });
+                    return;
                 }
+
+                const expiry = new Date(cert.valid_to);
+                const now = new Date();
+
+                if (expiry < now) {
+                    resolve({
+                        checkType: "SSL",
+                        status: "DOWN",
+                        error: "CERT_EXPIRED",
+                        sslExpiryDate: expiry,
+                    });
+                    return;
+                }
+
+                resolve({
+                    checkType: "SSL",
+                    status: "UP",
+                    sslExpiryDate: expiry,
+                });
             }
         );
 
-        socket.on("error", (err) => {
-            socket.destroy();
+        socket.on("error", (err: Error) => {
             resolve({
                 checkType: "SSL",
                 status: "DOWN",

@@ -1,27 +1,36 @@
 import { prisma } from "../db/client";
 import { CheckResult } from "../types";
+import { sendDownAlert, sendRecoveryAlert } from "./alerts/discord";
 
 const FAILURE_THRESHOLD = 3;
 
-export async function handleStateTransition(endpoint: any, httpResult: CheckResult) {
-    const isUp = httpResult.status === "UP";
-    const isDown = httpResult.status === "DOWN";
+export async function handleStateTransition(
+    endpoint: any,
+    httpResult: CheckResult
+) {
+    const freshEndpoint = await prisma.endpoint.findUnique({
+        where: { id: endpoint.id },
+    });
 
-    if (isUp) {
-        await handleUpState(endpoint, httpResult);
+    if (!freshEndpoint) return;
+
+    if (httpResult.status === "UP") {
+        await handleUpState(freshEndpoint);
         return;
     }
 
-    if (isDown) {
-        await handleDownState(endpoint, httpResult);
+    if (httpResult.status === "DOWN") {
+        await handleDownState(freshEndpoint, httpResult);
         return;
     }
 }
 
-async function handleUpState(endpoint: any, httpResult: CheckResult) {
+async function handleUpState(endpoint: any) {
     if (endpoint.currentStatus === "DOWN") {
-        await closeIncident(endpoint.id);
-        await sendRecoveryAlert(endpoint);
+        const downtimeMs = await closeIncident(endpoint.id);
+        if (downtimeMs !== null) {
+            await sendRecoveryAlert(endpoint, downtimeMs);
+        }
     }
 
     await prisma.endpoint.update({
@@ -44,9 +53,9 @@ async function handleDownState(endpoint: any, httpResult: CheckResult) {
         return;
     }
 
-    if (newFailCount >= FAILURE_THRESHOLD && endpoint.currentStatus === "UP") {
-        await startIncident(endpoint.id, httpResult);
-        await sendDownAlert(endpoint, httpResult);
+    if (endpoint.currentStatus === "UP") {
+        await startIncident(endpoint.id, httpResult.error);
+        await sendDownAlert(endpoint, httpResult.error ?? "Unknown error");
 
         await prisma.endpoint.update({
             where: { id: endpoint.id },
@@ -55,47 +64,41 @@ async function handleDownState(endpoint: any, httpResult: CheckResult) {
                 failCount: newFailCount,
             },
         });
-
         return;
     }
 
-    if (endpoint.currentStatus === "DOWN") {
-        await prisma.endpoint.update({
-            where: { id: endpoint.id },
-            data: { failCount: newFailCount },
-        });
-        return;
-    }
+    await prisma.endpoint.update({
+        where: { id: endpoint.id },
+        data: { failCount: newFailCount },
+    });
 }
 
-async function startIncident(endpointId: number, httpResult: CheckResult) {
+async function startIncident(endpointId: number, reason?: string) {
     await prisma.incident.create({
         data: {
             endpointId,
             downAt: new Date(),
-            reason: httpResult.error ?? "Unknown error",
+            reason: reason ?? "Unknown error",
         },
     });
 }
 
-async function closeIncident(endpointId: number) {
+async function closeIncident(endpointId: number): Promise<number | null> {
     const incident = await prisma.incident.findFirst({
         where: { endpointId, upAt: null },
         orderBy: { downAt: "desc" },
     });
 
-    if (!incident) return;
+    if (!incident) return null;
+
+    const resolvedAt = new Date();
+    const downtimeMs =
+        resolvedAt.getTime() - incident.downAt.getTime();
 
     await prisma.incident.update({
         where: { id: incident.id },
-        data: { upAt: new Date() },
+        data: { upAt: resolvedAt },
     });
-}
 
-async function sendDownAlert(endpoint: any, httpResult: CheckResult) {
-    console.log(`ALERT: ${endpoint.url} is DOWN - ${httpResult.error}`);
-}
-
-async function sendRecoveryAlert(endpoint: any) {
-    console.log(`ALERT: ${endpoint.url} has RECOVERED`);
+    return downtimeMs;
 }

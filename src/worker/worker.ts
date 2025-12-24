@@ -1,3 +1,5 @@
+console.log("WORKER BOOTED AT", new Date().toISOString());
+
 import { prisma } from "../db/client";
 import { runDnsCheck } from "../worker/dnsCheck";
 import { runSslCheck } from "../worker/sslCheck";
