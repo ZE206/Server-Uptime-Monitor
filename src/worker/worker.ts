@@ -7,8 +7,21 @@ import { runHttpCheck } from "../worker/httpCheck";
 import { handleStateTransition } from "../utils/stateMachine";
 
 const CHECK_INTERVAL_MS = 30_000;
+async function waitForDb() {
+    while (true) {
+        try {
+            await prisma.$queryRaw`SELECT 1`;
+            console.log("DB ready");
+            return;
+        } catch {
+            console.log("Waiting for DB...");
+            await new Promise(r => setTimeout(r, 2000));
+        }
+    }
+}
 
 async function runWorker() {
+    await waitForDb();
     console.log("Worker started...");
 
     while (true) {

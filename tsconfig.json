@@ -3,7 +3,7 @@
     "target": "ES2020",
     "module": "commonjs",
     "rootDir": "./",
-    "outDir": "./dist",
+    "outDir": "dist",
     "esModuleInterop": true,
     "strict": true,
     "skipLibCheck": true,
@@ -15,6 +15,7 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": [
-    "./"
+    "src/**/*.ts",
+    "worker.ts"
   ]
 }
