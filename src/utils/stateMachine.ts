@@ -1,6 +1,20 @@
 import { prisma } from "../db/client";
 import { CheckResult } from "../types";
-import { sendDownAlert, sendRecoveryAlert } from "./alerts/discord";
+import { sendDownEmail, sendRecoveryEmail } from "./alerts/email";
+
+/* SAFETY: alerts must never block worker */
+async function safeAlert(fn: () => Promise<void>) {
+    try {
+        await Promise.race([
+            fn(),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Alert timeout")), 5000)
+            )
+        ]);
+    } catch (err) {
+        console.error("Alert failed:", err);
+    }
+}
 
 const FAILURE_THRESHOLD = 3;
 
@@ -14,6 +28,16 @@ export async function handleStateTransition(
 
     if (!freshEndpoint) return;
 
+    console.log(
+        "[STATE]",
+        freshEndpoint.id,
+        freshEndpoint.currentStatus,
+        "→",
+        httpResult.status,
+        "failCount:",
+        freshEndpoint.failCount
+    );
+
     if (httpResult.status === "UP") {
         await handleUpState(freshEndpoint);
         return;
@@ -21,7 +45,6 @@ export async function handleStateTransition(
 
     if (httpResult.status === "DOWN") {
         await handleDownState(freshEndpoint, httpResult);
-        return;
     }
 }
 
@@ -29,7 +52,9 @@ async function handleUpState(endpoint: any) {
     if (endpoint.currentStatus === "DOWN") {
         const downtimeMs = await closeIncident(endpoint.id);
         if (downtimeMs !== null) {
-            await sendRecoveryAlert(endpoint, downtimeMs);
+            await safeAlert(() =>
+                sendRecoveryEmail(endpoint, downtimeMs)
+            );
         }
     }
 
@@ -55,7 +80,9 @@ async function handleDownState(endpoint: any, httpResult: CheckResult) {
 
     if (endpoint.currentStatus === "UP") {
         await startIncident(endpoint.id, httpResult.error);
-        await sendDownAlert(endpoint, httpResult.error ?? "Unknown error");
+        await safeAlert(() =>
+            sendDownEmail(endpoint, httpResult.error ?? "Unknown error")
+        );
 
         await prisma.endpoint.update({
             where: { id: endpoint.id },

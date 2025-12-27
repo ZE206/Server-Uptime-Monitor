@@ -4,6 +4,7 @@ import { router as endpointsRouter } from "./routes/endpoints";
 import { router as checksRouter } from "./routes/checks";
 import { router as incidentsRouter } from "./routes/incidents";
 import { router as analyticsRouter } from "./routes/analytics";
+import 'dotenv/config';
 
 const app = express();
 
