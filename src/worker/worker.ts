@@ -80,6 +80,10 @@ async function runWorker() {
             } catch (err: any) {
                 console.error(`Worker error on endpoint ${endpoint.id}:`, err);
             }
+            await prisma.endpoint.update({
+                where: { id: endpoint.id },
+                data: { lastCheckedAt: new Date() },
+            });
         }
 
         // Sleep before next cycle

@@ -4,6 +4,8 @@ import { router as endpointsRouter } from "./routes/endpoints";
 import { router as checksRouter } from "./routes/checks";
 import { router as incidentsRouter } from "./routes/incidents";
 import { router as analyticsRouter } from "./routes/analytics";
+import { historyRouter } from "./routes/history";
+
 import 'dotenv/config';
 
 const app = express();
@@ -24,6 +26,7 @@ app.use("/endpoints", endpointsRouter);
 app.use("/checks", checksRouter);
 app.use("/incidents", incidentsRouter);
 app.use("/analytics", analyticsRouter);
+app.use("/history", historyRouter);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

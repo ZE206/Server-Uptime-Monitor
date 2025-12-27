@@ -101,6 +101,16 @@ async function handleDownState(endpoint: any, httpResult: CheckResult) {
 }
 
 async function startIncident(endpointId: number, reason?: string) {
+    const existingIncident = await prisma.incident.findFirst({
+        where: {
+            endpointId,
+            upAt: null,
+        },
+    });
+
+    // If an incident is already open, do nothing
+    if (existingIncident) return;
+
     await prisma.incident.create({
         data: {
             endpointId,
@@ -110,13 +120,25 @@ async function startIncident(endpointId: number, reason?: string) {
     });
 }
 
+
 async function closeIncident(endpointId: number): Promise<number | null> {
     const incident = await prisma.incident.findFirst({
-        where: { endpointId, upAt: null },
-        orderBy: { downAt: "desc" },
+        where: {
+            endpointId,
+            upAt: null,
+        },
+        orderBy: {
+            downAt: "desc",
+        },
     });
 
-    if (!incident) return null;
+    if (!incident) {
+        console.warn(
+            "No open incident found while trying to close incident for endpoint",
+            endpointId
+        );
+        return null;
+    }
 
     const resolvedAt = new Date();
     const downtimeMs =
